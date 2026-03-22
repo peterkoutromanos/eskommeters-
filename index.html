@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-Phase Meter Readings</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #0f1520;
+    --border: #1e2d42;
+    --accent: #4a9eff;
+    --accent2: #e8e8e8;
+    --green: #39ff6e;
+    --red: #ff3355;
+    --text: #c8d8e8;
+    --muted: #4a6080;
+    --m1: #4a9eff;
+    --m2: #e8e8e8;
+    --m3: #ff4455;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 60% 40% at 15% 10%, rgba(74,158,255,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 35% at 85% 90%, rgba(255,68,85,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0 16px;
+    margin-bottom: 28px;
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  h1 span { color: var(--accent); }
+  .meter-ids {
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .meter-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  .tag-1 { background: rgba(74,158,255,0.1); border: 1px solid rgba(74,158,255,0.3); color: var(--m1); }
+  .tag-2 { background: rgba(232,232,232,0.1); border: 1px solid rgba(232,232,232,0.3); color: var(--m2); }
+  .tag-3 { background: rgba(255,68,85,0.1); border: 1px solid rgba(255,68,85,0.3); color: var(--m3); }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top-width: 2px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .summary-card.c1::after { background: var(--m1); }
+  .summary-card.c2::after { background: var(--m2); }
+  .summary-card.c3::after { background: var(--m3); }
+  .card-label { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .card-reading { font-family: 'Share Tech Mono', monospace; font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+  .card-reading.c1 { color: var(--m1); }
+  .card-reading.c2 { color: var(--m2); }
+  .card-reading.c3 { color: var(--m3); }
+  .card-kwh { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-kwh .pos { color: var(--green); }
+  .card-kwh .neg { color: var(--red); }
+  .card-kwh .zero { color: var(--muted); }
+
+  /* Entry form */
+  .form-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .form-title {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .form-title::before { content: '//'; color: var(--accent); font-family: 'Share Tech Mono', monospace; }
+  .form-grid { display: grid; grid-template-columns: 160px 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field input:focus { border-color: var(--accent); }
+  .field input.m1:focus { border-color: var(--m1); }
+  .field input.m2:focus { border-color: var(--m2); }
+  .field input.m3:focus { border-color: var(--m3); }
+  .field input[type="date"] { cursor: pointer; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+
+  .btn-add {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    height: 42px;
+  }
+  .btn-add:hover { background: #33dcff; }
+  .btn-add:active { transform: scale(0.98); }
+
+  .form-msg {
+    margin-top: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    min-height: 18px;
+  }
+  .form-msg.ok { color: var(--green); }
+  .form-msg.err { color: var(--red); }
+
+  /* Cumulative bar */
+  .cumul-bar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid #ffb400;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .cumul-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); white-space: nowrap; min-width: 160px;
+  }
+  .cumul-date {
+    display: block; font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; color: #ffb400; margin-top: 2px; letter-spacing: 1px;
+  }
+  .cumul-meters {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1;
+  }
+  .cumul-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .cumul-total-item { border-left: 1px solid var(--border); padding-left: 12px; }
+  .cumul-meter-id { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); }
+  .cumul-meter-id.c1 { color: var(--m1); }
+  .cumul-meter-id.c2 { color: var(--m2); }
+  .cumul-meter-id.c3 { color: var(--m3); }
+  .cumul-val {
+    font-family: 'Share Tech Mono', monospace; font-size: 22px; font-weight: 700; line-height: 1;
+  }
+  .cumul-val.c1 { color: var(--m1); }
+  .cumul-val.c2 { color: var(--m2); }
+  .cumul-val.c3 { color: var(--m3); }
+  .cumul-val.neg { color: var(--red) !important; }
+  .cumul-unit { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+  .cumul-sep { font-size: 18px; color: var(--muted); padding: 0 2px; margin-top: 10px; }
+  .cumul-days-item { margin-left: auto; }
+  .cumul-days {
+    font-family: 'Share Tech Mono', monospace; font-size: 11px;
+    color: var(--muted); background: rgba(255,180,0,0.08);
+    border: 1px solid rgba(255,180,0,0.2); padding: 4px 10px; border-radius: 2px;
+  }
+
+  /* Safe Read Panel */
+  .safe-read-panel {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 14px 20px; margin-bottom: 16px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .safe-read-panel.safe {
+    border-color: rgba(57,255,110,0.4);
+    background: rgba(57,255,110,0.04);
+  }
+  .safe-read-panel.warning {
+    border-color: rgba(255,180,0,0.4);
+    background: rgba(255,180,0,0.04);
+  }
+  .safe-read-panel.danger {
+    border-color: rgba(255,51,85,0.4);
+    background: rgba(255,51,85,0.04);
+  }
+  .safe-read-icon {
+    font-size: 28px; line-height: 1;
+    animation: pulse-icon 2s infinite;
+  }
+  @keyframes pulse-icon { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .safe-read-panel.safe .safe-read-icon { color: var(--green); }
+  .safe-read-panel.warning .safe-read-icon { color: #ffb400; }
+  .safe-read-panel.danger .safe-read-icon { color: var(--red); }
+  .safe-read-body { flex: 1; min-width: 200px; }
+  .safe-read-title {
+    font-size: 14px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 3px;
+  }
+  .safe-read-panel.safe .safe-read-title { color: var(--green); }
+  .safe-read-panel.warning .safe-read-title { color: #ffb400; }
+  .safe-read-panel.danger .safe-read-title { color: var(--red); }
+  .safe-read-detail {
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.6;
+  }
+  .safe-read-meter { min-width: 260px; flex: 2; }
+  .safe-read-meter-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .safe-read-track {
+    height: 8px; background: rgba(255,51,85,0.15);
+    border: 1px solid rgba(255,51,85,0.25); border-radius: 2px;
+    position: relative; overflow: hidden;
+  }
+  .safe-read-fill {
+    height: 100%; background: var(--green);
+    transition: width 0.5s ease; border-radius: 1px;
+    min-width: 0;
+  }
+  .safe-read-panel.warning .safe-read-fill { background: #ffb400; }
+  .safe-read-panel.danger .safe-read-fill { background: var(--red); }
+  .safe-read-zero {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: rgba(255,255,255,0.3);
+  }
+  .safe-read-track-labels {
+    display: flex; justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace; font-size: 10px;
+    color: var(--muted); margin-top: 4px;
+  }
+
+  /* Bill Estimator */
+  .bill-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: 2px solid #ffb400;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .bill-title {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .bill-title::before { content: '//'; color: #ffb400; font-family: 'Share Tech Mono', monospace; }
+  .bill-title .bill-badge {
+    font-size: 9px; letter-spacing: 1.5px;
+    background: rgba(255,180,0,0.12); border: 1px solid rgba(255,180,0,0.35);
+    color: #ffb400; padding: 2px 8px; border-radius: 2px;
+  }
+
+  .bill-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .bill-rates-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+  }
+  .bill-rates-title {
+    grid-column: 1 / -1;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .bill-field label {
+    display: block; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+  }
+  .bill-field input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Share Tech Mono', monospace;
+    font-size: 13px; padding: 8px 10px; outline: none; transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .bill-field input::-webkit-outer-spin-button,
+  .bill-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .bill-field input:focus { border-color: #ffb400; }
+
+  .btn-calc {
+    background: #ffb400; color: var(--bg); border: none;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 13px;
+    font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 10px 24px; cursor: pointer; transition: background 0.2s;
+    align-self: end; height: 38px;
+  }
+  .btn-calc:hover { background: #ffc933; }
+
+  .bill-results {
+    display: none;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,180,0,0.25);
+    padding: 18px 20px;
+    margin-top: 4px;
+  }
+  .bill-results.show { display: block; }
+  .bill-results-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+  }
+  .bill-line {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid rgba(30,45,66,0.6);
+    font-size: 13px;
+  }
+  .bill-line:last-child { border-bottom: none; }
+  .bill-line-label { color: var(--muted); font-size: 12px; letter-spacing: 0.5px; }
+  .bill-line-val { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--text); }
+  .bill-line-val.gold { color: #ffb400; font-size: 15px; font-weight: 700; }
+  .bill-line-val.total { color: #fff; font-size: 18px; font-weight: 700; }
+  .bill-divider {
+    grid-column: 1 / -1;
+    border: none; border-top: 1px solid rgba(255,180,0,0.2); margin: 6px 0;
+  }
+  .bill-col { padding: 0 12px; }
+  .bill-col:first-child { border-right: 1px solid var(--border); padding-left: 0; }
+  .bill-col:last-child { padding-right: 0; }
+  .bill-col-title {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .bill-total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,180,0,0.3);
+  }
+  .bill-total-label { font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: #ffb400; }
+  .bill-kwh-note { font-size: 11px; color: var(--muted); margin-top: 10px; font-family: 'Share Tech Mono', monospace; }
+
+  /* Table */
+  .table-section { background: var(--panel); border: 1px solid var(--border); }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .table-title {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .table-title::before { content: '//'; color: var(--accent); font-family: 'Share Tech Mono', monospace; }
+  .row-count { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .btn-export {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+  .table-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 14px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  thead th.m1h { color: var(--m1); }
+  thead th.m2h { color: var(--m2); }
+  thead th.m3h { color: var(--m3); }
+  thead th.toth { color: #fff; border-left: 1px solid var(--border); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,66,0.5);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: rgba(0,212,255,0.03); }
+  tbody td {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 9px 14px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  tbody td:first-child { text-align: left; color: var(--muted); font-size: 12px; }
+  .r1 { color: var(--m1); }
+  .r2 { color: var(--m2); }
+  .r3 { color: var(--m3); }
+  .d-pos { color: var(--green); font-size: 12px; }
+  .d-neg { color: var(--red); font-size: 12px; }
+  .d-zero { color: var(--muted); font-size: 12px; }
+  .d-na { color: var(--muted); font-size: 11px; }
+  .tot-cell { border-left: 1px solid var(--border); font-size: 13px !important; }
+  .days-cell { color: var(--muted) !important; font-size: 11px !important; text-align: center !important; }
+  .daily-cell { background: rgba(255,255,255,0.02); }
+  .d-daily { color: #a0b8d0; font-size: 11px; }
+
+  tr.pct-row td {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 0px 14px 7px;
+    text-align: right;
+    border-bottom: none;
+  }
+  tr.pct-row td:first-child { text-align: left; color: var(--muted); }
+  .pct-1 { color: rgba(74,158,255,0.6); }
+  .pct-2 { color: rgba(232,232,232,0.6); }
+  .pct-3 { color: rgba(255,68,85,0.6); }
+  .pct-tot { border-left: 1px solid var(--border); color: rgba(255,255,255,0.3); }
+  tbody tr.data-row { border-bottom: none; }
+
+  .peak-cell {
+    background: rgba(255, 51, 85, 0.18);
+    border: 1px solid rgba(255, 51, 85, 0.45);
+    border-radius: 2px;
+    position: relative;
+  }
+  .peak-cell .d-pos { color: #ff3355; font-weight: 700; }
+
+  .peak-reading {
+    background: rgba(255, 51, 85, 0.18);
+    border: 1px solid rgba(255, 51, 85, 0.45);
+    border-radius: 2px;
+    font-weight: 700;
+    color: #ff3355 !important;
+  }
+
+  tr.eskom-row td {
+    background: rgba(255, 180, 0, 0.07);
+    border-top: 1px solid rgba(255, 180, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 180, 0, 0.35) !important;
+  }
+  tr.eskom-row td:first-child { color: #ffb400; }
+  .eskom-tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    background: rgba(255,180,0,0.15);
+    border: 1px solid rgba(255,180,0,0.45);
+    color: #ffb400;
+    vertical-align: middle;
+  }
+
+  .btn-del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    transition: color 0.2s;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .btn-del:hover { color: var(--red); }
+
+  .chart-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .btn-add { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div>
+        <div class="logo">Avior · 3-Phase Supply</div>
+        <h1>METER <span>READINGS</span></h1>
+      </div>
+      <div class="meter-ids">
+        <span class="meter-tag tag-1">A942861</span>
+        <span class="meter-tag tag-2">A942862</span>
+        <span class="meter-tag tag-3">A942863</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Summary cards -->
+  <div class="summary-grid">
+    <div class="summary-card c1">
+      <div class="card-label">Meter 1 · A942861</div>
+      <div class="card-reading c1" id="lat1">—</div>
+      <div class="card-kwh" id="delta1"></div>
+    </div>
+    <div class="summary-card c2">
+      <div class="card-label">Meter 2 · A942862</div>
+      <div class="card-reading c2" id="lat2">—</div>
+      <div class="card-kwh" id="delta2"></div>
+    </div>
+    <div class="summary-card c3">
+      <div class="card-label">Meter 3 · A942863</div>
+      <div class="card-reading c3" id="lat3">—</div>
+      <div class="card-kwh" id="delta3"></div>
+    </div>
+  </div>
+
+  <!-- Cumulative since last Eskom reading -->
+  <div class="cumul-bar" id="cumul-bar">
+    <div class="cumul-label">Since last Eskom reading <span class="cumul-date" id="cumul-date"></span></div>
+    <div class="cumul-meters">
+      <div class="cumul-item">
+        <span class="cumul-meter-id c1">428461</span>
+        <span class="cumul-val c1" id="cum1">—</span>
+        <span class="cumul-unit">kWh</span>
+      </div>
+      <div class="cumul-sep">+</div>
+      <div class="cumul-item">
+        <span class="cumul-meter-id c2">428462</span>
+        <span class="cumul-val c2" id="cum2">—</span>
+        <span class="cumul-unit">kWh</span>
+      </div>
+      <div class="cumul-sep">+</div>
+      <div class="cumul-item">
+        <span class="cumul-meter-id c3">428463</span>
+        <span class="cumul-val c3" id="cum3">—</span>
+        <span class="cumul-unit">kWh</span>
+      </div>
+      <div class="cumul-sep">=</div>
+      <div class="cumul-item cumul-total-item">
+        <span class="cumul-meter-id" style="color:#fff">TOTAL</span>
+        <span class="cumul-val" id="cum-total" style="color:#fff">—</span>
+        <span class="cumul-unit">kWh</span>
+      </div>
+      <div class="cumul-days-item">
+        <span class="cumul-days" id="cumul-days"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Safe Eskom Read indicator -->
+  <div id="safe-read-panel" class="safe-read-panel">
+    <div class="safe-read-icon" id="safe-read-icon">●</div>
+    <div class="safe-read-body">
+      <div class="safe-read-title" id="safe-read-title">Calculating safe read window…</div>
+      <div class="safe-read-detail" id="safe-read-detail"></div>
+    </div>
+    <div class="safe-read-meter">
+      <div class="safe-read-meter-label">428461 vs Eskom baseline</div>
+      <div class="safe-read-track">
+        <div class="safe-read-fill" id="safe-read-fill"></div>
+        <div class="safe-read-zero" id="safe-read-zero"></div>
+      </div>
+      <div class="safe-read-track-labels">
+        <span id="sr-baseline-lbl"></span>
+        <span id="sr-current-lbl"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry form -->
+  <div class="form-section">
+    <div class="form-title">Add Reading</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field">
+        <label>Meter 1 · A942861 (kWh)</label>
+        <input type="number" id="f-m1" class="m1" placeholder="00000">
+      </div>
+      <div class="field">
+        <label>Meter 2 · A942862 (kWh)</label>
+        <input type="number" id="f-m2" class="m2" placeholder="00000">
+      </div>
+      <div class="field">
+        <label>Meter 3 · A942863 (kWh)</label>
+        <input type="number" id="f-m3" class="m3" placeholder="00000">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn-add" onclick="addReading()">+ ADD</button>
+      </div>
+    </div>
+    <div class="form-msg" id="form-msg"></div>
+  </div>
+
+  <!-- Bill Estimator -->
+  <div class="bill-section">
+    <div class="bill-title">Bill Estimator <span class="bill-badge">HOMEPOWER STANDARD</span></div>
+
+    <!-- Eskom baseline reading -->
+    <div class="bill-grid">
+      <div class="bill-field">
+        <label>Eskom Last Read Date</label>
+        <input type="date" id="b-from" value="2026-01-18">
+      </div>
+      <div class="bill-field">
+        <label>To Date (current reading)</label>
+        <input type="date" id="b-to">
+      </div>
+      <div class="bill-field" style="display:flex;align-items:end;">
+        <button class="btn-calc" onclick="calcBill()" style="width:100%">⚡ CALCULATE</button>
+      </div>
+    </div>
+
+    <!-- Eskom baseline meter readings -->
+    <div class="bill-rates-grid">
+      <div class="bill-rates-title">Eskom Baseline Readings (18-Jan-26 — from bill)</div>
+      <div class="bill-field">
+        <label>M1 Baseline (kWh)</label>
+        <input type="number" id="b-base1" value="36815">
+      </div>
+      <div class="bill-field">
+        <label>M2 Baseline (kWh)</label>
+        <input type="number" id="b-base2" value="34796">
+      </div>
+      <div class="bill-field">
+        <label>M3 Baseline (kWh)</label>
+        <input type="number" id="b-base3" value="35013">
+      </div>
+      <div class="bill-field">
+        <label>Current M1 (kWh)</label>
+        <input type="number" id="b-curr1" placeholder="auto from latest">
+      </div>
+      <div class="bill-field">
+        <label>Current M2 (kWh)</label>
+        <input type="number" id="b-curr2" placeholder="auto from latest">
+      </div>
+      <div class="bill-field">
+        <label>Current M3 (kWh)</label>
+        <input type="number" id="b-curr3" placeholder="auto from latest">
+      </div>
+    </div>
+
+    <!-- Tariff rates (pre-filled from Jan 2026 bill) -->
+    <div class="bill-rates-grid">
+      <div class="bill-rates-title">Tariff Rates (confirmed from Jan 2026 invoice — edit if changed)</div>
+      <div class="bill-field">
+        <label>Energy (R/kWh)</label>
+        <input type="number" id="r-energy" value="2.6878" step="0.0001">
+      </div>
+      <div class="bill-field">
+        <label>Network Demand (R/kWh)</label>
+        <input type="number" id="r-netdem" value="0.2637" step="0.0001">
+      </div>
+      <div class="bill-field">
+        <label>Ancillary (R/kWh)</label>
+        <input type="number" id="r-anc" value="0.0041" step="0.0001">
+      </div>
+      <div class="bill-field">
+        <label>Service & Admin (R/day)</label>
+        <input type="number" id="r-svc" value="3.27" step="0.01">
+      </div>
+      <div class="bill-field">
+        <label>Network Capacity (R/day)</label>
+        <input type="number" id="r-netcap" value="12.13" step="0.01">
+      </div>
+      <div class="bill-field">
+        <label>Gen Capacity (R/day)</label>
+        <input type="number" id="r-gencap" value="0.72" step="0.01">
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="bill-results" id="bill-results">
+      <div class="bill-results-grid">
+        <div class="bill-col">
+          <div class="bill-col-title">Fixed Charges</div>
+          <div class="bill-line"><span class="bill-line-label">Service &amp; Admin</span><span class="bill-line-val" id="br-svc">—</span></div>
+          <div class="bill-line"><span class="bill-line-label">Network Capacity</span><span class="bill-line-val" id="br-netcap">—</span></div>
+          <div class="bill-line"><span class="bill-line-label">Generation Capacity</span><span class="bill-line-val" id="br-gencap">—</span></div>
+          <div class="bill-line" style="margin-top:4px"><span class="bill-line-label">Fixed Subtotal</span><span class="bill-line-val gold" id="br-fixed">—</span></div>
+        </div>
+        <div class="bill-col">
+          <div class="bill-col-title">Variable Charges</div>
+          <div class="bill-line"><span class="bill-line-label">Energy Charge</span><span class="bill-line-val" id="br-energy">—</span></div>
+          <div class="bill-line"><span class="bill-line-label">Network Demand</span><span class="bill-line-val" id="br-netdem">—</span></div>
+          <div class="bill-line"><span class="bill-line-label">Ancillary Service</span><span class="bill-line-val" id="br-anc">—</span></div>
+          <div class="bill-line" style="margin-top:4px"><span class="bill-line-label">Variable Subtotal</span><span class="bill-line-val gold" id="br-var">—</span></div>
+        </div>
+      </div>
+      <div class="bill-total-row">
+        <div>
+          <div class="bill-total-label">Estimated Bill</div>
+          <div class="bill-kwh-note" id="br-note"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">excl. VAT</div>
+          <div class="bill-line-val gold" id="br-excl">—</div>
+          <div style="font-size:11px;color:var(--muted);margin:4px 0 2px">incl. 15% VAT</div>
+          <div class="bill-line-val total" id="br-incl">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.6;">
+        ⚠ M1 negative consumption is excluded from billable kWh. Credit on account (R3,771.23) not deducted — apply manually.
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-section">
+    <div class="table-header">
+      <span class="table-title">Reading History</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="row-count" id="row-count"></span>
+        <button class="btn-export" onclick="exportCSV()">↓ Export CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th style="color:var(--muted)">Days</th>
+            <th class="m1h">428461</th>
+            <th class="m1h">428461 kWh</th>
+            <th class="m1h" style="font-size:9px">428461/day</th>
+            <th class="m2h">428462</th>
+            <th class="m2h">428462 kWh</th>
+            <th class="m2h" style="font-size:9px">428462/day</th>
+            <th class="m3h">428463</th>
+            <th class="m3h">428463 kWh</th>
+            <th class="m3h" style="font-size:9px">428463/day</th>
+            <th class="toth">Total kWh</th>
+            <th class="toth" style="font-size:9px">Total/day</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phase Difference Chart -->
+  <div class="chart-section" style="margin-top:28px;">
+    <div class="table-header" style="padding:16px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <span class="table-title">428463 − 428461 · Phase Spread Over Time</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted)" id="chart-subtitle"></span>
+    </div>
+    <div style="padding:20px;position:relative;height:320px;">
+      <canvas id="diffChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Seed data ──────────────────────────────────────────────────────────────
+const SEED = [
+  { date: '2024-04-22', m1: 22940, m2: 25852, m3: 29010 },
+  { date: '2025-10-13', m1: 36420, m2: 34685, m3: 34492 },
+  { date: '2025-10-18', m1: 36424, m2: 34686, m3: 34520 },
+  { date: '2025-11-23', m1: 37690, m2: 35327, m3: 34878 },
+  { date: '2025-11-30', m1: 37847, m2: 35371, m3: 35107 },
+  { date: '2025-12-02', m1: 37711, m2: 35228, m3: 35134 },
+  { date: '2025-12-05', m1: 37497, m2: 35016, m3: 35188 },
+  { date: '2025-12-17', m1: 37206, m2: 34724, m3: 35072 },
+  { date: '2025-12-26', m1: 37170, m2: 34695, m3: 35040 },
+  { date: '2025-12-30', m1: 37060, m2: 34635, m3: 34947 },
+  { date: '2026-01-07', m1: 36966, m2: 34555, m3: 34853 },
+  { date: '2026-01-18', m1: 36815, m2: 34796, m3: 35013 },
+  { date: '2026-01-27', m1: 36616, m2: 34703, m3: 35174 },
+  { date: '2026-01-31', m1: 36650, m2: 34813, m3: 35244 },
+  { date: '2026-02-14', m1: 35670, m2: 34889, m3: 35900 },
+  { date: '2026-02-22', m1: 35304, m2: 35047, m3: 36579 },
+  { date: '2026-02-26', m1: 35583, m2: 35492, m3: 37034 },
+  { date: '2026-03-01', m1: 35739, m2: 35777, m3: 37452 },
+  { date: '2026-03-04', m1: 35759, m2: 35873, m3: 37790 },
+  { date: '2026-03-07', m1: 35703, m2: 35927, m3: 37844 },
+  { date: '2026-03-08', m1: 35734, m2: 35983, m3: 37718 },
+  { date: '2026-03-09', m1: 35765, m2: 36039, m3: 37791 },
+  { date: '2026-03-10', m1: 35719, m2: 36037, m3: 37803 },
+  { date: '2026-03-12', m1: 35716, m2: 36089, m3: 37879 },
+  { date: '2026-03-14', m1: 35799, m2: 36191, m3: 37996 },
+  { date: '2026-03-15', m1: 35861, m2: 36273, m3: 38074 },
+  { date: '2026-03-15', m1: 35905, m2: 36317, m3: 38120 },
+  { date: '2026-03-17', m1: 36120, m2: 36557, m3: 38371 },
+  { date: '2026-03-19', m1: 36390, m2: 36847, m3: 38885 },
+  { date: '2026-03-22', m1: 36519, m2: 37051, m3: 38835 },
+];
+
+const KEY = 'meter_readings_v2';
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  // First run: seed
+  localStorage.setItem(KEY, JSON.stringify(SEED));
+  return JSON.parse(JSON.stringify(SEED));
+}
+
+function save(data) {
+  localStorage.setItem(KEY, JSON.stringify(data));
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('en-ZA', { minimumFractionDigits: 0 });
+}
+
+function fmtDate(d) {
+  const [y, m, day] = d.split('-');
+  return `${day}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y.slice(2)}`;
+}
+
+function deltaHtml(val) {
+  if (val === null) return `<span class="d-na">—</span>`;
+  if (val > 0)  return `<span class="d-pos">+${fmt(val)}</span>`;
+  if (val < 0)  return `<span class="d-neg">(${fmt(Math.abs(val))})</span>`;
+  return `<span class="d-zero">0</span>`;
+}
+
+function render() {
+  const data = load();
+  // Sort by date ascending, then by insertion order for same dates
+  const sorted = [...data].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+
+  // Summary cards
+  if (sorted.length > 0) {
+    const last = sorted[sorted.length - 1];
+    const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+    ['1','2','3'].forEach(n => {
+      const mk = `m${n}`;
+      document.getElementById(`lat${n}`).textContent = fmt(last[mk]);
+      const d = prev ? last[mk] - prev[mk] : null;
+      const el = document.getElementById(`delta${n}`);
+      if (d === null) { el.innerHTML = ''; return; }
+      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+      const sign = d > 0 ? '+' : '';
+      el.innerHTML = `Last reading: <span class="${cls}">${sign}${fmt(d)} kWh</span>`;
+    });
+  }
+
+  // Cumulative since last Eskom reading (18-Jan-26)
+  const ESKOM_DATES = ['2026-01-18', '2025-10-13'];
+  // Find the most recent Eskom reading in the data
+  const eskomRows = sorted.filter(r => ESKOM_DATES.includes(r.date));
+  if (eskomRows.length > 0 && sorted.length > 0) {
+    const eskomRow = eskomRows[eskomRows.length - 1]; // most recent Eskom reading
+    const latest   = sorted[sorted.length - 1];
+    const daysSince = Math.round((new Date(latest.date) - new Date(eskomRow.date)) / 86400000);
+    const c1 = latest.m1 - eskomRow.m1;
+    const c2 = latest.m2 - eskomRow.m2;
+    const c3 = latest.m3 - eskomRow.m3;
+    const ctot = c1 + c2 + c3;
+
+    const setVal = (id, v) => {
+      const el = document.getElementById(id);
+      el.textContent = fmt(Math.abs(v));
+      el.className = 'cumul-val' + (id.startsWith('cum') && id !== 'cum-total' ? ` c${id.slice(-1)}` : '') + (v < 0 ? ' neg' : '');
+    };
+    setVal('cum1', c1);
+    setVal('cum2', c2);
+    setVal('cum3', c3);
+    const totEl = document.getElementById('cum-total');
+    totEl.textContent = fmt(Math.abs(ctot));
+    totEl.className = 'cumul-val' + (ctot < 0 ? ' neg' : '');
+
+    document.getElementById('cumul-date').textContent = fmtDate(eskomRow.date);
+    document.getElementById('cumul-days').textContent = `${daysSince} days elapsed`;
+
+    // ── Safe Eskom Read indicator for meter 428461 ──────────────────────
+    const panel = document.getElementById('safe-read-panel');
+    const eskomBaseline = eskomRow.m1;       // 428461 at last Eskom read
+    const currentM1     = latest.m1;         // current 428461 reading
+    const deficit       = currentM1 - eskomBaseline; // negative = below baseline
+
+    // Estimate daily rate of change for 428461 from last few readings
+    // Use up to last 7 readings after Eskom date to calculate average daily trend
+    const postEskom = sorted.filter(r => r.date > eskomRow.date);
+    let dailyRate = null;
+    if (postEskom.length >= 2) {
+      const first = postEskom[0];
+      const last2 = postEskom[postEskom.length - 1];
+      const spanDays = Math.round((new Date(last2.date) - new Date(first.date)) / 86400000);
+      if (spanDays > 0) dailyRate = (last2.m1 - first.m1) / spanDays;
+    } else if (postEskom.length === 1) {
+      const spanDays = Math.round((new Date(postEskom[0].date) - new Date(eskomRow.date)) / 86400000);
+      if (spanDays > 0) dailyRate = (postEskom[0].m1 - eskomRow.m1) / spanDays;
+    }
+
+    const srTitle  = document.getElementById('safe-read-title');
+    const srDetail = document.getElementById('safe-read-detail');
+    const srFill   = document.getElementById('safe-read-fill');
+    const srZero   = document.getElementById('safe-read-zero');
+    const srBase   = document.getElementById('sr-baseline-lbl');
+    const srCurr   = document.getElementById('sr-current-lbl');
+
+    srBase.textContent = `Baseline: ${fmt(eskomBaseline)}`;
+    srCurr.textContent = `Now: ${fmt(currentM1)}`;
+
+    // Progress bar: show how far 428461 is above/below baseline
+    // Range: show ±500 kWh around baseline for context
+    const range = 800;
+    const clampedDef = Math.max(-range, Math.min(range, deficit));
+    const pct = ((clampedDef + range) / (2 * range)) * 100;
+    srFill.style.width = pct + '%';
+    srZero.style.left  = '50%'; // midpoint = baseline
+
+    if (deficit >= 0) {
+      // Above baseline — safe to read
+      panel.className = 'safe-read-panel safe';
+      srTitle.textContent = `✓ Safe to read — 428461 is ${fmt(deficit)} kWh above baseline`;
+      const rateStr = dailyRate !== null
+        ? `Current trend: ${dailyRate > 0 ? '+' : ''}${dailyRate.toFixed(1)} kWh/day on 428461`
+        : '';
+      srDetail.textContent = `Meter 428461 is above the Eskom baseline of ${fmt(eskomBaseline)} kWh. An Eskom reading now would show positive consumption. ${rateStr}`;
+    } else {
+      // Below baseline — calculate days to recover
+      panel.className = 'safe-read-panel' + (deficit > -200 ? ' warning' : ' danger');
+      const absDef = Math.abs(deficit);
+      if (dailyRate !== null && dailyRate > 0) {
+        const daysToRecover = Math.ceil(absDef / dailyRate);
+        const recoverDate = new Date(latest.date);
+        recoverDate.setDate(recoverDate.getDate() + daysToRecover);
+        const recoverStr = fmtDate(recoverDate.toISOString().slice(0,10));
+        srTitle.textContent = deficit > -200
+          ? `⚠ Caution — 428461 is ${fmt(absDef)} kWh below baseline`
+          : `✕ Risk — 428461 is ${fmt(absDef)} kWh below Eskom baseline`;
+        srDetail.textContent = `At the current trend of +${dailyRate.toFixed(1)} kWh/day, meter 428461 should recover above ${fmt(eskomBaseline)} kWh in approximately ${daysToRecover} days (around ${recoverStr}). Avoid an Eskom reading before then.`;
+      } else if (dailyRate !== null && dailyRate <= 0) {
+        srTitle.textContent = `✕ Risk — 428461 is ${fmt(absDef)} kWh below baseline and trending negative`;
+        srDetail.textContent = `Meter 428461 is currently trending at ${dailyRate.toFixed(1)} kWh/day. At this rate it will not recover above baseline ${fmt(eskomBaseline)} without reducing daytime export or increasing night load on this phase.`;
+        panel.className = 'safe-read-panel danger';
+      } else {
+        srTitle.textContent = `⚠ 428461 is ${fmt(absDef)} kWh below Eskom baseline`;
+        srDetail.textContent = `Add more readings to calculate recovery trend and estimated safe read date.`;
+        panel.className = 'safe-read-panel warning';
+      }
+    }
+  }
+
+  // Table (newest first for display)
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  // Pre-compute all deltas to find peak per meter
+  const allDeltas = sorted.map((row, idx) => {
+    const prev = idx > 0 ? sorted[idx - 1] : null;
+    return {
+      d1: prev ? row.m1 - prev.m1 : null,
+      d2: prev ? row.m2 - prev.m2 : null,
+      d3: prev ? row.m3 - prev.m3 : null,
+    };
+  });
+  const peak1 = Math.max(...allDeltas.map(d => d.d1 ?? -Infinity));
+  const peak2 = Math.max(...allDeltas.map(d => d.d2 ?? -Infinity));
+  const peak3 = Math.max(...allDeltas.map(d => d.d3 ?? -Infinity));
+
+  // Peak meter readings (highest absolute reading value per meter)
+  const peakR1 = Math.max(...sorted.map(r => r.m1));
+  const peakR2 = Math.max(...sorted.map(r => r.m2));
+  const peakR3 = Math.max(...sorted.map(r => r.m3));
+
+  const rev = [...sorted].reverse();
+  rev.forEach((row, ri) => {
+    // Find previous in sorted order
+    const idx = sorted.indexOf(row);
+    const prev = idx > 0 ? sorted[idx - 1] : null;
+    const d1 = prev ? row.m1 - prev.m1 : null;
+    const d2 = prev ? row.m2 - prev.m2 : null;
+    const d3 = prev ? row.m3 - prev.m3 : null;
+    const total = (d1 !== null && d2 !== null && d3 !== null) ? d1 + d2 + d3 : null;
+
+    const pct = (v) => (total && total !== 0) ? ((v / total) * 100).toFixed(1) + '%' : '—';
+    const hasPct = total !== null && total !== 0;
+
+    const peakClass1 = (d1 !== null && d1 === peak1) ? 'peak-cell' : '';
+    const peakClass2 = (d2 !== null && d2 === peak2) ? 'peak-cell' : '';
+    const peakClass3 = (d3 !== null && d3 === peak3) ? 'peak-cell' : '';
+
+    const peakR1Class = (row.m1 === peakR1) ? 'r1 peak-reading' : 'r1';
+    const peakR2Class = (row.m2 === peakR2) ? 'r2 peak-reading' : 'r2';
+    const peakR3Class = (row.m3 === peakR3) ? 'r3 peak-reading' : 'r3';
+
+    const isEskom = (row.date === '2026-01-18' || row.date === '2025-10-13');
+
+    // Days between readings
+    const daysBetween = prev ? Math.round((new Date(row.date) - new Date(prev.date)) / 86400000) : null;
+    const daily = (v, days) => (days && days > 0 && v !== null) ? (v / days).toFixed(1) : null;
+    const dailyHtml = (v) => v === null ? `<span class="d-na">—</span>` : `<span class="d-daily">${v}</span>`;
+
+    const tr = document.createElement('tr');
+    tr.className = 'data-row' + (isEskom ? ' eskom-row' : '');
+    tr.innerHTML = `
+      <td>${fmtDate(row.date)}${isEskom ? '<span class="eskom-tag">ESKOM</span>' : ''}</td>
+      <td class="days-cell">${daysBetween !== null ? daysBetween + 'd' : '<span class="d-na">—</span>'}</td>
+      <td class="${peakR1Class}">${fmt(row.m1)}</td>
+      <td class="${peakClass1}">${deltaHtml(d1)}</td>
+      <td class="daily-cell">${dailyHtml(daily(d1, daysBetween))}</td>
+      <td class="${peakR2Class}">${fmt(row.m2)}</td>
+      <td class="${peakClass2}">${deltaHtml(d2)}</td>
+      <td class="daily-cell">${dailyHtml(daily(d2, daysBetween))}</td>
+      <td class="${peakR3Class}">${fmt(row.m3)}</td>
+      <td class="${peakClass3}">${deltaHtml(d3)}</td>
+      <td class="daily-cell">${dailyHtml(daily(d3, daysBetween))}</td>
+      <td class="tot-cell">${deltaHtml(total)}</td>
+      <td class="tot-cell daily-cell">${dailyHtml(daily(total, daysBetween))}</td>
+      <td><button class="btn-del" title="Delete" onclick="deleteRow(${sorted.indexOf(row)})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    // Percentage sub-row
+    const pr = document.createElement('tr');
+    pr.className = 'pct-row';
+    pr.innerHTML = `
+      <td></td>
+      <td></td>
+      <td></td>
+      <td class="pct-1">${hasPct ? pct(d1) : ''}</td>
+      <td></td>
+      <td></td>
+      <td class="pct-2">${hasPct ? pct(d2) : ''}</td>
+      <td></td>
+      <td></td>
+      <td class="pct-3">${hasPct ? pct(d3) : ''}</td>
+      <td></td>
+      <td class="pct-tot">${hasPct ? '100%' : ''}</td>
+      <td></td>
+      <td></td>
+    `;
+    tbody.appendChild(pr);
+  });
+
+  document.getElementById('row-count').textContent = `${sorted.length} readings`;
+}
+
+function addReading() {
+  const date = document.getElementById('f-date').value;
+  const m1 = document.getElementById('f-m1').value;
+  const m2 = document.getElementById('f-m2').value;
+  const m3 = document.getElementById('f-m3').value;
+  const msg = document.getElementById('form-msg');
+
+  if (!date) { msg.className='form-msg err'; msg.textContent='⚠ Please enter a date.'; return; }
+  if (m1 === '' || m2 === '' || m3 === '') { msg.className='form-msg err'; msg.textContent='⚠ All three meter readings are required.'; return; }
+
+  const data = load();
+  data.push({ date, m1: +m1, m2: +m2, m3: +m3 });
+  save(data);
+  render();
+  safeRenderChart();
+
+  // Reset form
+  document.getElementById('f-m1').value = '';
+  document.getElementById('f-m2').value = '';
+  document.getElementById('f-m3').value = '';
+
+  msg.className = 'form-msg ok';
+  msg.textContent = `✓ Reading for ${fmtDate(date)} saved successfully.`;
+  setTimeout(() => { msg.textContent = ''; }, 3500);
+}
+
+function deleteRow(idx) {
+  if (!confirm('Delete this reading?')) return;
+  const data = load();
+  const sorted = [...data].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const toRemove = sorted[idx];
+  const newData = data.filter(r => r !== toRemove);
+  save(newData);
+  render();
+  safeRenderChart();
+}
+
+function exportCSV() {
+  const data = load();
+  const sorted = [...data].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  let csv = 'Date,Meter1_A942861,M1_kWh,Meter2_A942862,M2_kWh,Meter3_A942863,M3_kWh,Total_kWh\n';
+  sorted.forEach((row, i) => {
+    const prev = i > 0 ? sorted[i-1] : null;
+    const d1 = prev ? row.m1 - prev.m1 : '';
+    const d2 = prev ? row.m2 - prev.m2 : '';
+    const d3 = prev ? row.m3 - prev.m3 : '';
+    const tot = (d1 !== '' && d2 !== '' && d3 !== '') ? d1 + d2 + d3 : '';
+    csv += `${row.date},${row.m1},${d1},${row.m2},${d2},${row.m3},${d3},${tot}\n`;
+  });
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'meter_readings.csv';
+  a.click();
+}
+
+// Set today's date as default
+document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+document.getElementById('b-to').value = new Date().toISOString().slice(0,10);
+
+// Allow Enter key on inputs
+document.querySelectorAll('.field input').forEach(inp => {
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') addReading(); });
+});
+
+function R(n) { return 'R ' + n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function populateLatestReadings() {
+  const data = load();
+  if (!data.length) return;
+  const sorted = [...data].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const last = sorted[sorted.length - 1];
+  document.getElementById('b-curr1').value = last.m1;
+  document.getElementById('b-curr2').value = last.m2;
+  document.getElementById('b-curr3').value = last.m3;
+  document.getElementById('b-to').value = last.date;
+}
+
+function calcBill() {
+  const fromDate = new Date(document.getElementById('b-from').value);
+  const toDate   = new Date(document.getElementById('b-to').value);
+  const days = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24));
+
+  const base1 = +document.getElementById('b-base1').value || 0;
+  const base2 = +document.getElementById('b-base2').value || 0;
+  const base3 = +document.getElementById('b-base3').value || 0;
+  const curr1 = +document.getElementById('b-curr1').value || 0;
+  const curr2 = +document.getElementById('b-curr2').value || 0;
+  const curr3 = +document.getElementById('b-curr3').value || 0;
+
+  const d1 = curr1 - base1;
+  const d2 = curr2 - base2;
+  const d3 = curr3 - base3;
+
+  // Only count positive consumption per meter
+  const kWh1 = Math.max(0, d1);
+  const kWh2 = Math.max(0, d2);
+  const kWh3 = Math.max(0, d3);
+  const totalKwh = kWh1 + kWh2 + kWh3;
+
+  const rEnergy = +document.getElementById('r-energy').value;
+  const rNetdem = +document.getElementById('r-netdem').value;
+  const rAnc    = +document.getElementById('r-anc').value;
+  const rSvc    = +document.getElementById('r-svc').value;
+  const rNetcap = +document.getElementById('r-netcap').value;
+  const rGencap = +document.getElementById('r-gencap').value;
+
+  const svc    = rSvc    * days;
+  const netcap = rNetcap * days;
+  const gencap = rGencap * days;
+  const fixed  = svc + netcap + gencap;
+
+  const energy = totalKwh * rEnergy;
+  const netdem = totalKwh * rNetdem;
+  const anc    = totalKwh * rAnc;
+  const variable = energy + netdem + anc;
+
+  const subtotal = fixed + variable;
+  const vat = subtotal * 0.15;
+  const total = subtotal + vat;
+
+  // Populate results
+  document.getElementById('br-svc').textContent    = R(svc);
+  document.getElementById('br-netcap').textContent = R(netcap);
+  document.getElementById('br-gencap').textContent = R(gencap);
+  document.getElementById('br-fixed').textContent  = R(fixed);
+  document.getElementById('br-energy').textContent = R(energy);
+  document.getElementById('br-netdem').textContent = R(netdem);
+  document.getElementById('br-anc').textContent    = R(anc);
+  document.getElementById('br-var').textContent    = R(variable);
+  document.getElementById('br-excl').textContent   = R(subtotal);
+  document.getElementById('br-incl').textContent   = R(total);
+
+  const neg = [];
+  if (d1 < 0) neg.push(`M1: ${fmt(d1)} kWh excluded`);
+  if (d2 < 0) neg.push(`M2: ${fmt(d2)} kWh excluded`);
+  if (d3 < 0) neg.push(`M3: ${fmt(d3)} kWh excluded`);
+  document.getElementById('br-note').textContent =
+    `${days} days · ${fmt(totalKwh)} kWh billed` +
+    (neg.length ? ` · ${neg.join(', ')}` : '');
+
+  document.getElementById('bill-results').classList.add('show');
+}
+
+let diffChartInstance = null;
+
+function renderChart() {
+  const data   = load();
+  const sorted = [...data].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+
+  const labels = sorted.map(r => fmtDate(r.date));
+  const diffs  = sorted.map(r => r.m3 - r.m1);   // 428463 − 428461
+  const minD   = Math.min(...diffs);
+  const maxD   = Math.max(...diffs);
+
+  document.getElementById('chart-subtitle').textContent =
+    `Min: ${fmt(minD)} kWh  ·  Max: ${fmt(maxD)} kWh  ·  Current: ${fmt(diffs[diffs.length-1])} kWh`;
+
+  // Colour each point: green if spread is growing (428463 outpacing 428461), red if shrinking
+  const pointColors = diffs.map((d, i) =>
+    i === 0 ? 'rgba(232,232,232,0.8)' :
+    d > diffs[i-1] ? 'rgba(255,68,85,0.9)' : 'rgba(74,158,255,0.9)'
+  );
+
+  const ctx = document.getElementById('diffChart').getContext('2d');
+  if (diffChartInstance) diffChartInstance.destroy();
+
+  // Zero-line annotation data
+  const zeroData = diffs.map(() => 0);
+
+  diffChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '428463 − 428461 (kWh)',
+          data: diffs,
+          borderColor: 'rgba(255,68,85,0.8)',
+          backgroundColor: (ctx2) => {
+            const chart = ctx2.chart;
+            const {ctx: c, chartArea} = chart;
+            if (!chartArea) return 'transparent';
+            const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            grad.addColorStop(0, 'rgba(255,68,85,0.25)');
+            grad.addColorStop(1, 'rgba(74,158,255,0.03)');
+            return grad;
+          },
+          borderWidth: 2,
+          pointBackgroundColor: pointColors,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'Zero line',
+          data: zeroData,
+          borderColor: 'rgba(255,180,0,0.4)',
+          borderWidth: 1,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: '#0f1520',
+          borderColor: '#1e2d42',
+          borderWidth: 1,
+          titleColor: '#ff4455',
+          bodyColor: '#c8d8e8',
+          padding: 10,
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => {
+              if (item.datasetIndex === 1) return null;
+              const v = item.raw;
+              return ` 428463 − 428461 = ${v >= 0 ? '+' : ''}${fmt(v)} kWh`;
+            },
+            afterLabel: (item) => {
+              if (item.datasetIndex === 1) return null;
+              const idx = item.dataIndex;
+              const row = sorted[idx];
+              return [
+                ` 428461: ${fmt(row.m1)} kWh`,
+                ` 428463: ${fmt(row.m3)} kWh`,
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#4a6080',
+            font: { family: "'Share Tech Mono', monospace", size: 10 },
+            maxRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 12,
+          },
+          grid: { color: 'rgba(30,45,66,0.6)' },
+        },
+        y: {
+          ticks: {
+            color: '#4a6080',
+            font: { family: "'Share Tech Mono', monospace", size: 10 },
+            callback: (v) => fmt(v) + ' kWh',
+          },
+          grid: { color: 'rgba(30,45,66,0.6)' },
+          title: {
+            display: true,
+            text: '428463 − 428461 (kWh)',
+            color: '#4a6080',
+            font: { family: "'Barlow Condensed', sans-serif", size: 11, weight: '600' },
+            padding: { bottom: 8 },
+          }
+        }
+      }
+    }
+  });
+}
+
+function safeRenderChart() {
+  if (typeof Chart !== 'undefined') {
+    renderChart();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+  populateLatestReadings();
+});
+
+window.addEventListener('load', () => {
+  renderChart();
+});
+</script>
+</body>
+</html>
