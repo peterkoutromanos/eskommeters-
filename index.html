@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3-Phase Meter Readings</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0a0e14;
@@ -850,7 +850,8 @@
 const SUPABASE_URL = 'https://wpfbvrpbhujvomzrnfev.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwZmJ2cnBiaHVqdm9tenJuZmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MzY1NTYsImV4cCI6MjA5MDQxMjU1Nn0.JQj99e-PgwUaVK2A3yjks-5WwlkomcRfXSEtHuAfAGQ';
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseLib = window.supabase || window.supabaseJs;
+const sb = supabaseLib.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Seed data (imported once if DB is empty) ───────────────────────────────
 const SEED = [
@@ -890,30 +891,32 @@ const SEED = [
 
 // ── Database functions ─────────────────────────────────────────────────────
 async function load() {
-  const { data, error } = await sb
-    .from('readings')
-    .select('*')
-    .order('date', { ascending: true })
-    .order('id',   { ascending: true });
-  if (error) {
-    console.error('Load error:', JSON.stringify(error));
+  try {
+    const { data, error } = await sb
+      .from('readings')
+      .select('*')
+      .order('date', { ascending: true })
+      .order('id',   { ascending: true });
+    if (error) {
+      console.error('Load error:', JSON.stringify(error));
+      document.getElementById('form-msg').className = 'form-msg err';
+      document.getElementById('form-msg').textContent = '⚠ DB error: ' + (error.message || error.code || JSON.stringify(error));
+      return [];
+    }
+    return data.map(r => ({
+      id:       r.id,
+      date:     r.date,
+      m1:       r.m1,
+      m2:       r.m2,
+      m3:       r.m3,
+      reported: r.reported || false,
+    }));
+  } catch(e) {
+    console.error('Load exception:', e);
     document.getElementById('form-msg').className = 'form-msg err';
-    document.getElementById('form-msg').textContent = '⚠ DB error: ' + (error.message || error.code || JSON.stringify(error));
+    document.getElementById('form-msg').textContent = '⚠ Connection error: ' + e.message;
     return [];
   }
-  if (data.length === 0) {
-    // First run — seed the database
-    await seedDatabase();
-    return await load();
-  }
-  return data.map(r => ({
-    id:       r.id,
-    date:     r.date,
-    m1:       r.m1,
-    m2:       r.m2,
-    m3:       r.m3,
-    reported: r.reported || false,
-  }));
 }
 
 async function seedDatabase() {
@@ -1262,7 +1265,9 @@ document.querySelectorAll('.field input').forEach(inp => {
 function R(n) { return 'R ' + n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 async function refreshAll() {
+  document.getElementById('row-count').textContent = 'Loading…';
   const data = await load();
+  if (!data.length) return;
   render(data);
   populateLatestReadings(data);
   safeRenderChart(data);
